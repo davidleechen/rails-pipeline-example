@@ -1,24 +1,12 @@
-# README
+# Rails Pipeline Example
+This repository is a stock rails project created to demonstrate a fully
+functional deployment pipeline to Kubernetes.
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+## Creation
+The excellent [rails-new](https://github.com/rails/rails-new) project is used
+to create the a new Rails project without needing local dependencies besides
+Docker. That means no messing with Ruby version managers or brew.
 
-Things you may want to cover:
-
-* Ruby version
-
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+```shell
+rails-new rails-pipeline-example --ruby-version 3.4.1 --devcontainer
+```
