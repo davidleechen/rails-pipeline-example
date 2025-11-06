@@ -8,7 +8,7 @@ to create a new Rails project without needing local dependencies besides
 Docker. That means no messing with Ruby version managers or brew.
 
 ```shell
-rails-new rails-pipeline-example --ruby-version 3.4.1 --devcontainer
+rails-new rails-pipeline-example --ruby-version 3.4.7 --devcontainer
 ```
 
 ## Image
