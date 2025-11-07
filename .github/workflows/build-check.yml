@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'Dockerfile'
-      - '.devcontainer/Dockerfile'
-      - '.devcontainer/compose.yaml'
       - '.ruby-version'
       - 'Gemfile'
       - 'Gemfile.lock'
@@ -13,8 +11,6 @@ on:
     branches: [ main ]
     paths:
       - 'Dockerfile'
-      - '.devcontainer/Dockerfile'
-      - '.devcontainer/compose.yaml'
       - '.ruby-version'
       - 'Gemfile'
       - 'Gemfile.lock'
@@ -38,26 +34,5 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: rails-pipeline-example:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-devcontainer:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build dev container Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: .devcontainer/Dockerfile
-          push: false
-          tags: rails-pipeline-example-dev:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
