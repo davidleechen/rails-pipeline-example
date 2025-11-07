@@ -22,6 +22,8 @@ on:
 jobs:
   build-production:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -41,6 +43,8 @@ jobs:
 
   build-devcontainer:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
