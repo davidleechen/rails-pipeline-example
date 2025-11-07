@@ -16,7 +16,7 @@ on:
       - 'Gemfile.lock'
 
 jobs:
-  build-production:
+  build-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
