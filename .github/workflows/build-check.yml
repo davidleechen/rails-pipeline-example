@@ -1,0 +1,38 @@
+name: Build Check
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.ruby-version'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - '.ruby-version'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: rails-pipeline-example:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
