@@ -1,168 +1,187 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
-
-require "fileutils"
-
+#!/bin/bash
 # This script renames the Rails application throughout the repository
 # Usage: bin/rename_application <new-app-name> [github-owner]
 
-def snake_case(str)
-  str.gsub("-", "_")
-end
+set -e
 
-def camel_case(str)
-  str.split(/[-_]/).map(&:capitalize).join
-end
-
-def kebab_case(str)
-  str.gsub("_", "-")
-end
-
-def print_usage
-  puts <<~USAGE
-    Usage: bin/rename_application <new-app-name> [github-owner]
-    
-    This script renames the Rails application throughout the repository.
-    The new app name should be in kebab-case (e.g., my-app-name).
-    
-    Arguments:
-      new-app-name    The new name for your application (required, kebab-case)
-      github-owner    Your GitHub username or organization (optional)
-    
-    Example:
-      bin/rename_application my-awesome-app
-      bin/rename_application my-awesome-app myusername
-    
-    This will update:
-      - Ruby module name (config/application.rb)
-      - Docker image names
-      - Kubernetes configurations
-      - GitHub workflow files
-      - Kamal deployment configuration
-      - Documentation
-      - GitHub owner references (if provided)
-  USAGE
-end
-
-if ARGV.length < 1 || ARGV.length > 2
-  print_usage
-  exit 1
-end
-
-new_name_kebab = ARGV[0]
-new_github_owner = ARGV[1]
-
-unless new_name_kebab =~ /^[a-z][a-z0-9-]*$/
-  puts "Error: App name must be in kebab-case (lowercase letters, numbers, and hyphens only)"
-  puts "       and must start with a letter."
-  exit 1
-end
-
-if new_github_owner && !(new_github_owner =~ /^[a-z0-9][a-z0-9-]*$/i)
-  puts "Error: GitHub owner must be valid (letters, numbers, and hyphens only)"
-  exit 1
-end
-
-# Define name variations
-OLD_NAME_KEBAB = "rails-pipeline-example"
-OLD_NAME_SNAKE = "rails_pipeline_example"
-OLD_NAME_CAMEL = "RailsPipelineExample"
-OLD_GITHUB_OWNER = "davidleechen"
-
-new_name_snake = snake_case(new_name_kebab)
-new_name_camel = camel_case(new_name_kebab)
-
-puts "=" * 70
-puts "Rails Application Renaming Script"
-puts "=" * 70
-puts
-puts "Old name (kebab): #{OLD_NAME_KEBAB}"
-puts "Old name (snake): #{OLD_NAME_SNAKE}"
-puts "Old name (camel): #{OLD_NAME_CAMEL}"
-if new_github_owner
-  puts "Old GitHub owner: #{OLD_GITHUB_OWNER}"
-end
-puts
-puts "New name (kebab): #{new_name_kebab}"
-puts "New name (snake): #{new_name_snake}"
-puts "New name (camel): #{new_name_camel}"
-if new_github_owner
-  puts "New GitHub owner: #{new_github_owner}"
-end
-puts
-puts "=" * 70
-puts
-
-# Ask for confirmation
-print "Continue with renaming? (y/n): "
-confirmation = STDIN.gets.chomp.downcase
-unless confirmation == "y" || confirmation == "yes"
-  puts "Renaming cancelled."
-  exit 0
-end
-
-puts "\nRenaming application..."
-
-# Function to replace content in a file
-def replace_in_file(file_path, replacements)
-  return unless File.exist?(file_path)
-  
-  content = File.read(file_path)
-  original_content = content.dup
-  
-  replacements.each do |old_text, new_text|
-    content.gsub!(old_text, new_text)
-  end
-  
-  if content != original_content
-    File.write(file_path, content)
-    puts "  ✓ Updated: #{file_path}"
-  end
-end
-
-# Define replacements
-replacements = {
-  OLD_NAME_CAMEL => new_name_camel,
-  OLD_NAME_KEBAB => new_name_kebab,
-  OLD_NAME_SNAKE => new_name_snake
+# Name conversion functions
+snake_case() {
+    echo "$1" | tr '-' '_'
 }
 
-# Add GitHub owner replacement if provided
-if new_github_owner
-  replacements[OLD_GITHUB_OWNER] = new_github_owner
-end
+kebab_case() {
+    echo "$1" | tr '_' '-'
+}
+
+camel_case() {
+    echo "$1" | sed -E 's/(^|[-_])([a-z])/\U\2/g'
+}
+
+print_usage() {
+    cat << 'EOF'
+Usage: bin/rename_application <new-app-name> [github-owner]
+
+This script renames the Rails application throughout the repository.
+The new app name should be in kebab-case (e.g., my-app-name).
+
+Arguments:
+  new-app-name    The new name for your application (required, kebab-case)
+  github-owner    Your GitHub username or organization (optional)
+
+Example:
+  bin/rename_application my-awesome-app
+  bin/rename_application my-awesome-app myusername
+
+This will update:
+  - Ruby module name (config/application.rb)
+  - Docker image names
+  - Kubernetes configurations
+  - GitHub workflow files
+  - Kamal deployment configuration
+  - Documentation
+  - GitHub owner references (if provided)
+EOF
+}
+
+# Check arguments
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    print_usage
+    exit 1
+fi
+
+new_name_kebab="$1"
+new_github_owner="${2:-}"
+
+# Validate app name format (kebab-case)
+if ! echo "$new_name_kebab" | grep -qE '^[a-z][a-z0-9-]*$'; then
+    echo "Error: App name must be in kebab-case (lowercase letters, numbers, and hyphens only)"
+    echo "       and must start with a letter."
+    exit 1
+fi
+
+# Validate GitHub owner format if provided
+if [ -n "$new_github_owner" ]; then
+    if ! echo "$new_github_owner" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9-]*$'; then
+        echo "Error: GitHub owner must be valid (letters, numbers, and hyphens only)"
+        exit 1
+    fi
+fi
+
+# Define old name variations
+OLD_NAME_KEBAB="rails-pipeline-example"
+OLD_NAME_SNAKE="rails_pipeline_example"
+OLD_NAME_CAMEL="RailsPipelineExample"
+OLD_GITHUB_OWNER="davidleechen"
+
+# Generate new name variations
+new_name_snake=$(snake_case "$new_name_kebab")
+new_name_camel=$(camel_case "$new_name_kebab")
+
+# Display summary
+echo "======================================================================"
+echo "Rails Application Renaming Script"
+echo "======================================================================"
+echo
+echo "Old name (kebab): $OLD_NAME_KEBAB"
+echo "Old name (snake): $OLD_NAME_SNAKE"
+echo "Old name (camel): $OLD_NAME_CAMEL"
+if [ -n "$new_github_owner" ]; then
+    echo "Old GitHub owner: $OLD_GITHUB_OWNER"
+fi
+echo
+echo "New name (kebab): $new_name_kebab"
+echo "New name (snake): $new_name_snake"
+echo "New name (camel): $new_name_camel"
+if [ -n "$new_github_owner" ]; then
+    echo "New GitHub owner: $new_github_owner"
+fi
+echo
+echo "======================================================================"
+echo
+
+# Ask for confirmation
+read -r -p "Continue with renaming? (y/n): " confirmation
+if [ "$confirmation" != "y" ] && [ "$confirmation" != "yes" ]; then
+    echo "Renaming cancelled."
+    exit 0
+fi
+
+echo
+echo "Renaming application..."
+
+# Function to replace content in a file using sed
+replace_in_file() {
+    local file="$1"
+    local old_text="$2"
+    local new_text="$3"
+    
+    if [ ! -f "$file" ]; then
+        return
+    fi
+    
+    # Escape special characters for sed
+    local old_escaped
+    local new_escaped
+    old_escaped=$(printf '%s\n' "$old_text" | sed 's:[][\\/.^$*]:\\&:g')
+    new_escaped=$(printf '%s\n' "$new_text" | sed 's:[\\/&]:\\&:g')
+    
+    # Check if file contains the old text
+    if grep -qF "$old_text" "$file" 2>/dev/null; then
+        # Use different sed syntax for macOS vs Linux
+        if sed --version >/dev/null 2>&1; then
+            # GNU sed (Linux)
+            sed -i "s/$old_escaped/$new_escaped/g" "$file"
+        else
+            # BSD sed (macOS)
+            sed -i '' "s/$old_escaped/$new_escaped/g" "$file"
+        fi
+        echo "  ✓ Updated: $file"
+    fi
+}
 
 # Files to update
-files_to_update = [
-  "config/application.rb",
-  "config/environment.rb",
-  "config/deploy.yml",
-  "README.md",
-  "Dockerfile",
-  ".github/workflows/build-check.yml"
-]
+files_to_update=(
+    "config/application.rb"
+    "config/environment.rb"
+    "config/deploy.yml"
+    "README.md"
+    "Dockerfile"
+    ".github/workflows/build-check.yml"
+)
 
-puts "\nUpdating files:"
-files_to_update.each do |file|
-  replace_in_file(file, replacements)
-end
+echo
+echo "Updating files:"
 
-puts "\n" + "=" * 70
-puts "Renaming complete!"
-puts "=" * 70
-puts
-puts "Next steps:"
-puts "  1. Review the changes: git diff"
-if new_github_owner
-  puts "  2. ✓ GitHub owner updated to: #{new_github_owner}"
+# Perform replacements - order matters (CamelCase first to avoid partial matches)
+for file in "${files_to_update[@]}"; do
+    if [ -f "$file" ]; then
+        replace_in_file "$file" "$OLD_NAME_CAMEL" "$new_name_camel"
+        replace_in_file "$file" "$OLD_NAME_KEBAB" "$new_name_kebab"
+        replace_in_file "$file" "$OLD_NAME_SNAKE" "$new_name_snake"
+        
+        if [ -n "$new_github_owner" ]; then
+            replace_in_file "$file" "$OLD_GITHUB_OWNER" "$new_github_owner"
+        fi
+    fi
+done
+
+echo
+echo "======================================================================"
+echo "Renaming complete!"
+echo "======================================================================"
+echo
+echo "Next steps:"
+echo "  1. Review the changes: git diff"
+if [ -n "$new_github_owner" ]; then
+    echo "  2. ✓ GitHub owner updated to: $new_github_owner"
 else
-  puts "  2. Update your GitHub repository owner in README.md if needed"
-  puts "     Hint: Run this script again with: bin/rename_application #{new_name_kebab} YOUR-USERNAME"
-end
-puts "  3. Update config/deploy.yml with your deployment settings"
-puts "  4. Commit the changes: git add . && git commit -m 'Rename application to #{new_name_kebab}'"
-puts
-puts "Note: If you're using this as a template, you may also want to:"
-puts "  - Configure your container registry in config/deploy.yml"
-puts "  - Set up your deployment servers and domains"
-puts
+    echo "  2. Update your GitHub repository owner in README.md if needed"
+    echo "     Hint: Run this script again with: bin/rename_application $new_name_kebab YOUR-USERNAME"
+fi
+echo "  3. Update config/deploy.yml with your deployment settings"
+echo "  4. Commit the changes: git add . && git commit -m 'Rename application to $new_name_kebab'"
+echo
+echo "Note: If you're using this as a template, you may also want to:"
+echo "  - Configure your container registry in config/deploy.yml"
+echo "  - Set up your deployment servers and domains"
+echo

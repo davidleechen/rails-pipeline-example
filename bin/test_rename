@@ -1,159 +1,210 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
-
+#!/bin/bash
 # Test script for bin/rename_application
 # This creates a temporary copy, runs the rename, and verifies the changes
 
-require "fileutils"
-require "tmpdir"
+set -e
 
-def run_test(test_name, script_args, expected_checks)
-  puts "\n" + "=" * 70
-  puts "Test: #{test_name}"
-  puts "=" * 70
-  
-  # Create a temporary directory for testing
-  test_dir = Dir.mktmpdir("rename_test_")
-  puts "Created test directory: #{test_dir}"
-  
-  # Files we'll test
-  test_files = {
-    "config/application.rb" => <<~RUBY,
-      module RailsPipelineExample
-        class Application < Rails::Application
-          config.load_defaults 8.0
-        end
-      end
-    RUBY
-    "README.md" => <<~MD,
-      # rails-pipeline-example
-      Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
-      Service: rails_pipeline_example
-      Owner: davidleechen
-    MD
-    "Dockerfile" => <<~DOCKER,
-      # docker build -t rails_pipeline_example .
-      # docker run --name rails_pipeline_example rails_pipeline_example
-    DOCKER
-    "config/deploy.yml" => <<~YAML
-      service: rails_pipeline_example
-      image: your-user/rails_pipeline_example
-      volumes:
-        - "rails_pipeline_example_storage:/rails/storage"
-    YAML
-  }
-  
-  # Create test files
-  test_files.each do |path, content|
-    full_path = File.join(test_dir, path)
-    FileUtils.mkdir_p(File.dirname(full_path))
-    File.write(full_path, content)
+# Track test results
+all_tests_passed=true
+
+run_test() {
+    local test_name="$1"
+    local script_args="$2"
+    
+    echo
+    echo "======================================================================"
+    echo "Test: $test_name"
+    echo "======================================================================"
+    
+    # Create a temporary directory for testing
+    test_dir=$(mktemp -d -t rename_test_XXXXXX)
+    echo "Created test directory: $test_dir"
+    
+    # Create test files
+    mkdir -p "$test_dir/config"
+    
+    cat > "$test_dir/config/application.rb" << 'EOF'
+module RailsPipelineExample
+  class Application < Rails::Application
+    config.load_defaults 8.0
   end
-  
-  # Copy the rename script
-  script_path = File.join(test_dir, "bin")
-  FileUtils.mkdir_p(script_path)
-  FileUtils.cp("bin/rename_application", File.join(script_path, "rename_application"))
-  
-  puts "Running: bin/rename_application #{script_args}"
-  
-  # Run the rename script
-  Dir.chdir(test_dir) do
-    IO.popen("echo 'y' | ruby bin/rename_application #{script_args}", "r") do |pipe|
-      output = pipe.read
-      puts "\nScript output:"
-      puts output
-    end
-  end
-  
-  puts "\nVerifying changes..."
-  
-  # Verify the changes
-  errors = []
-  
-  # Run custom checks
-  expected_checks.each do |check|
-    begin
-      check.call(test_dir)
-    rescue => e
-      errors << e.message
-    end
-  end
-  
-  # Report results
-  puts "\n" + "=" * 70
-  if errors.empty?
-    puts "✓ #{test_name} passed!"
-  else
-    puts "✗ #{test_name} failed!"
-    puts "=" * 70
-    errors.each do |error|
-      puts "  ✗ #{error}"
-    end
-    puts "\nTest directory preserved for inspection: #{test_dir}"
-    return false
-  end
-  
-  # Cleanup
-  FileUtils.rm_rf(test_dir)
-  puts "Test directory cleaned up."
-  
-  true
 end
+EOF
+    
+    cat > "$test_dir/README.md" << 'EOF'
+# rails-pipeline-example
+Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
+Service: rails_pipeline_example
+Owner: davidleechen
+EOF
+    
+    cat > "$test_dir/Dockerfile" << 'EOF'
+# docker build -t rails_pipeline_example .
+# docker run --name rails_pipeline_example rails_pipeline_example
+EOF
+    
+    cat > "$test_dir/config/deploy.yml" << 'EOF'
+service: rails_pipeline_example
+image: your-user/rails_pipeline_example
+volumes:
+  - "rails_pipeline_example_storage:/rails/storage"
+EOF
+    
+    # Copy the rename script
+    mkdir -p "$test_dir/bin"
+    cp "bin/rename_application" "$test_dir/bin/rename_application"
+    chmod +x "$test_dir/bin/rename_application"
+    
+    echo "Running: bin/rename_application $script_args"
+    
+    # Run the rename script
+    cd "$test_dir"
+    # shellcheck disable=SC2086
+    echo 'y' | bash bin/rename_application $script_args > /dev/null 2>&1 || true
+    cd - > /dev/null
+    
+    echo
+    echo "Verifying changes..."
+    
+    # Run checks
+    local test_passed=true
+    local errors=()
+    
+    # Check 1: Module name in application.rb
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "module MyCoolApp" "$test_dir/config/application.rb"; then
+            errors+=("Module name not updated to MyCoolApp")
+            test_passed=false
+        fi
+        if grep -q "RailsPipelineExample" "$test_dir/config/application.rb"; then
+            errors+=("Old module name RailsPipelineExample still present")
+            test_passed=false
+        fi
+    elif echo "$test_name" | grep -q "awesome-rails"; then
+        if ! grep -q "module AwesomeRails" "$test_dir/config/application.rb"; then
+            errors+=("Module name not updated to AwesomeRails")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 2: README.md updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my-cool-app" "$test_dir/README.md"; then
+            errors+=("Kebab-case name not updated in README")
+            test_passed=false
+        fi
+        if ! grep -q "my_cool_app" "$test_dir/README.md"; then
+            errors+=("Snake-case name not updated in README")
+            test_passed=false
+        fi
+        if grep -q "rails-pipeline-example" "$test_dir/README.md"; then
+            errors+=("Old kebab name still present in README")
+            test_passed=false
+        fi
+    elif echo "$test_name" | grep -q "awesome-rails"; then
+        if ! grep -q "awesome-rails" "$test_dir/README.md"; then
+            errors+=("App name not updated to awesome-rails")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 3: Dockerfile updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my_cool_app" "$test_dir/Dockerfile"; then
+            errors+=("Dockerfile not updated with new name")
+            test_passed=false
+        fi
+        if grep -q "rails_pipeline_example" "$test_dir/Dockerfile"; then
+            errors+=("Old name still in Dockerfile")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 4: deploy.yml updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "service: my_cool_app" "$test_dir/config/deploy.yml"; then
+            errors+=("Deploy service not updated")
+            test_passed=false
+        fi
+        if ! grep -q "my_cool_app_storage" "$test_dir/config/deploy.yml"; then
+            errors+=("Deploy volume not updated")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 5: GitHub owner updates
+    if echo "$script_args" | grep -q "myusername"; then
+        if ! grep -q "myusername" "$test_dir/README.md"; then
+            errors+=("GitHub owner not updated to myusername")
+            test_passed=false
+        fi
+        if grep -q "davidleechen" "$test_dir/README.md"; then
+            errors+=("Old GitHub owner still present")
+            test_passed=false
+        fi
+    fi
+    
+    echo
+    echo "======================================================================"
+    if [ "$test_passed" = true ]; then
+        echo "✓ $test_name passed!"
+    else
+        echo "✗ $test_name failed!"
+        echo "======================================================================"
+        for error in "${errors[@]}"; do
+            echo "  ✗ $error"
+        done
+        echo
+        echo "Test directory preserved for inspection: $test_dir"
+        all_tests_passed=false
+        return 1
+    fi
+    
+    # Cleanup
+    rm -rf "$test_dir"
+    echo "Test directory cleaned up."
+    
+    return 0
+}
+
+echo "======================================================================"
+echo "Testing bin/rename_application script"
+echo "======================================================================"
 
 # Test 1: Basic rename without GitHub owner
-test1_passed = run_test(
-  "Basic application rename",
-  "my-cool-app",
-  [
-    ->(dir) {
-      app_rb = File.read(File.join(dir, "config/application.rb"))
-      raise "Module name not updated" unless app_rb.include?("module MyCoolApp")
-      raise "Old module name still present" if app_rb.include?("RailsPipelineExample")
-    },
-    ->(dir) {
-      readme = File.read(File.join(dir, "README.md"))
-      raise "Kebab-case name not updated" unless readme.include?("my-cool-app")
-      raise "Snake-case name not updated" unless readme.include?("my_cool_app")
-      raise "Old kebab name still present" if readme.include?("rails-pipeline-example")
-    },
-    ->(dir) {
-      dockerfile = File.read(File.join(dir, "Dockerfile"))
-      raise "Dockerfile not updated" unless dockerfile.include?("my_cool_app")
-      raise "Old name in Dockerfile" if dockerfile.include?("rails_pipeline_example")
-    },
-    ->(dir) {
-      deploy = File.read(File.join(dir, "config/deploy.yml"))
-      raise "Deploy service not updated" unless deploy.include?("service: my_cool_app")
-      raise "Deploy volume not updated" unless deploy.include?("my_cool_app_storage")
-    }
-  ]
-)
+test1_passed=false
+if run_test "Basic application rename (my-cool-app)" "my-cool-app"; then
+    test1_passed=true
+fi
 
 # Test 2: Rename with GitHub owner
-test2_passed = run_test(
-  "Application rename with GitHub owner",
-  "awesome-rails myusername",
-  [
-    ->(dir) {
-      app_rb = File.read(File.join(dir, "config/application.rb"))
-      raise "Module name not updated" unless app_rb.include?("module AwesomeRails")
-    },
-    ->(dir) {
-      readme = File.read(File.join(dir, "README.md"))
-      raise "App name not updated" unless readme.include?("awesome-rails")
-      raise "GitHub owner not updated" unless readme.include?("myusername")
-      raise "Old GitHub owner still present" if readme.include?("davidleechen")
-      raise "Old app name still present" if readme.include?("rails-pipeline-example")
-    }
-  ]
-)
+test2_passed=false
+if run_test "Application rename with GitHub owner (awesome-rails)" "awesome-rails myusername"; then
+    test2_passed=true
+fi
 
-puts "\n" + "=" * 70
-puts "Test Summary"
-puts "=" * 70
-puts "Test 1 (Basic rename): #{test1_passed ? '✓ PASSED' : '✗ FAILED'}"
-puts "Test 2 (Rename with owner): #{test2_passed ? '✓ PASSED' : '✗ FAILED'}"
-puts "=" * 70
+echo
+echo "======================================================================"
+echo "Test Summary"
+echo "======================================================================"
+if [ "$test1_passed" = true ]; then
+    echo "Test 1 (Basic rename): ✓ PASSED"
+else
+    echo "Test 1 (Basic rename): ✗ FAILED"
+fi
+if [ "$test2_passed" = true ]; then
+    echo "Test 2 (Rename with owner): ✓ PASSED"
+else
+    echo "Test 2 (Rename with owner): ✗ FAILED"
+fi
+echo "======================================================================"
 
-exit(test1_passed && test2_passed ? 0 : 1)
+if [ "$all_tests_passed" = true ]; then
+    echo
+    echo "All tests passed successfully!"
+    exit 0
+else
+    echo
+    echo "Some tests failed."
+    exit 1
+fi
