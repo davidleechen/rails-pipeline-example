@@ -4,7 +4,7 @@
 require "fileutils"
 
 # This script renames the Rails application throughout the repository
-# Usage: bin/rename_application <new-app-name>
+# Usage: bin/rename_application <new-app-name> [github-owner]
 
 def snake_case(str)
   str.gsub("-", "_")
@@ -20,13 +20,18 @@ end
 
 def print_usage
   puts <<~USAGE
-    Usage: bin/rename_application <new-app-name>
+    Usage: bin/rename_application <new-app-name> [github-owner]
     
     This script renames the Rails application throughout the repository.
     The new app name should be in kebab-case (e.g., my-app-name).
     
+    Arguments:
+      new-app-name    The new name for your application (required, kebab-case)
+      github-owner    Your GitHub username or organization (optional)
+    
     Example:
       bin/rename_application my-awesome-app
+      bin/rename_application my-awesome-app myusername
     
     This will update:
       - Ruby module name (config/application.rb)
@@ -35,15 +40,17 @@ def print_usage
       - GitHub workflow files
       - Kamal deployment configuration
       - Documentation
+      - GitHub owner references (if provided)
   USAGE
 end
 
-if ARGV.length != 1
+if ARGV.length < 1 || ARGV.length > 2
   print_usage
   exit 1
 end
 
 new_name_kebab = ARGV[0]
+new_github_owner = ARGV[1]
 
 unless new_name_kebab =~ /^[a-z][a-z0-9-]*$/
   puts "Error: App name must be in kebab-case (lowercase letters, numbers, and hyphens only)"
@@ -51,10 +58,16 @@ unless new_name_kebab =~ /^[a-z][a-z0-9-]*$/
   exit 1
 end
 
+if new_github_owner && !(new_github_owner =~ /^[a-z0-9][a-z0-9-]*$/i)
+  puts "Error: GitHub owner must be valid (letters, numbers, and hyphens only)"
+  exit 1
+end
+
 # Define name variations
 OLD_NAME_KEBAB = "rails-pipeline-example"
 OLD_NAME_SNAKE = "rails_pipeline_example"
 OLD_NAME_CAMEL = "RailsPipelineExample"
+OLD_GITHUB_OWNER = "davidleechen"
 
 new_name_snake = snake_case(new_name_kebab)
 new_name_camel = camel_case(new_name_kebab)
@@ -66,10 +79,16 @@ puts
 puts "Old name (kebab): #{OLD_NAME_KEBAB}"
 puts "Old name (snake): #{OLD_NAME_SNAKE}"
 puts "Old name (camel): #{OLD_NAME_CAMEL}"
+if new_github_owner
+  puts "Old GitHub owner: #{OLD_GITHUB_OWNER}"
+end
 puts
 puts "New name (kebab): #{new_name_kebab}"
 puts "New name (snake): #{new_name_snake}"
 puts "New name (camel): #{new_name_camel}"
+if new_github_owner
+  puts "New GitHub owner: #{new_github_owner}"
+end
 puts
 puts "=" * 70
 puts
@@ -108,6 +127,11 @@ replacements = {
   OLD_NAME_SNAKE => new_name_snake
 }
 
+# Add GitHub owner replacement if provided
+if new_github_owner
+  replacements[OLD_GITHUB_OWNER] = new_github_owner
+end
+
 # Files to update
 files_to_update = [
   "config/application.rb",
@@ -129,12 +153,16 @@ puts "=" * 70
 puts
 puts "Next steps:"
 puts "  1. Review the changes: git diff"
-puts "  2. Update your GitHub repository owner in README.md if needed"
+if new_github_owner
+  puts "  2. ✓ GitHub owner updated to: #{new_github_owner}"
+else
+  puts "  2. Update your GitHub repository owner in README.md if needed"
+  puts "     Hint: Run this script again with: bin/rename_application #{new_name_kebab} YOUR-USERNAME"
+end
 puts "  3. Update config/deploy.yml with your deployment settings"
 puts "  4. Commit the changes: git add . && git commit -m 'Rename application to #{new_name_kebab}'"
 puts
 puts "Note: If you're using this as a template, you may also want to:"
-puts "  - Update the GitHub repository URLs in README.md"
 puts "  - Configure your container registry in config/deploy.yml"
 puts "  - Set up your deployment servers and domains"
 puts

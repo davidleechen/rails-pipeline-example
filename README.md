@@ -1,8 +1,11 @@
 # Rails Pipeline Example
+
+> 🎯 **Template Repository**: Click "Use this template" to create your own Rails application with a complete CI/CD pipeline!
+
 This repository is a stock rails project created to demonstrate a fully
 functional deployment pipeline to Kubernetes.
 
-## Using as a Template
+## 🚀 Using as a Template
 
 This repository can be used as a template for new Rails applications. See [TEMPLATE.md](TEMPLATE.md) for detailed instructions on:
 
@@ -15,8 +18,16 @@ This repository can be used as a template for new Rails applications. See [TEMPL
 ```bash
 # After creating a repository from this template:
 bin/rename_application your-app-name
-# Review changes, update GitHub owner, and commit
+# Review changes, update GitHub owner (davidleechen → your-username), and commit
 ```
+
+### What's Included
+
+✅ **Rails 8.0** - Latest Rails with modern defaults  
+✅ **Docker** - Production-ready Dockerfile  
+✅ **GitHub Actions CI/CD** - Security scanning, linting, testing, and automated releases  
+✅ **Kamal Deployment** - Deploy to any server with zero-downtime  
+✅ **Dev Container** - Consistent development environment
 
 ## Project Creation
 The excellent [rails-new](https://github.com/rails/rails-new) project is used

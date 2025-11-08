@@ -7,123 +7,153 @@
 require "fileutils"
 require "tmpdir"
 
-puts "=" * 70
-puts "Testing bin/rename_application script"
-puts "=" * 70
-puts
-
-# Create a temporary directory for testing
-test_dir = Dir.mktmpdir("rename_test_")
-puts "Created test directory: #{test_dir}"
-
-# Files we'll test
-test_files = {
-  "config/application.rb" => <<~RUBY,
-    module RailsPipelineExample
-      class Application < Rails::Application
-        config.load_defaults 8.0
+def run_test(test_name, script_args, expected_checks)
+  puts "\n" + "=" * 70
+  puts "Test: #{test_name}"
+  puts "=" * 70
+  
+  # Create a temporary directory for testing
+  test_dir = Dir.mktmpdir("rename_test_")
+  puts "Created test directory: #{test_dir}"
+  
+  # Files we'll test
+  test_files = {
+    "config/application.rb" => <<~RUBY,
+      module RailsPipelineExample
+        class Application < Rails::Application
+          config.load_defaults 8.0
+        end
       end
+    RUBY
+    "README.md" => <<~MD,
+      # rails-pipeline-example
+      Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
+      Service: rails_pipeline_example
+      Owner: davidleechen
+    MD
+    "Dockerfile" => <<~DOCKER,
+      # docker build -t rails_pipeline_example .
+      # docker run --name rails_pipeline_example rails_pipeline_example
+    DOCKER
+    "config/deploy.yml" => <<~YAML
+      service: rails_pipeline_example
+      image: your-user/rails_pipeline_example
+      volumes:
+        - "rails_pipeline_example_storage:/rails/storage"
+    YAML
+  }
+  
+  # Create test files
+  test_files.each do |path, content|
+    full_path = File.join(test_dir, path)
+    FileUtils.mkdir_p(File.dirname(full_path))
+    File.write(full_path, content)
+  end
+  
+  # Copy the rename script
+  script_path = File.join(test_dir, "bin")
+  FileUtils.mkdir_p(script_path)
+  FileUtils.cp("bin/rename_application", File.join(script_path, "rename_application"))
+  
+  puts "Running: bin/rename_application #{script_args}"
+  
+  # Run the rename script
+  Dir.chdir(test_dir) do
+    IO.popen("echo 'y' | ruby bin/rename_application #{script_args}", "r") do |pipe|
+      output = pipe.read
+      puts "\nScript output:"
+      puts output
     end
-  RUBY
-  "README.md" => <<~MD,
-    # rails-pipeline-example
-    Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
-    Service: rails_pipeline_example
-  MD
-  "Dockerfile" => <<~DOCKER,
-    # docker build -t rails_pipeline_example .
-    # docker run --name rails_pipeline_example rails_pipeline_example
-  DOCKER
-  "config/deploy.yml" => <<~YAML
-    service: rails_pipeline_example
-    image: your-user/rails_pipeline_example
-    volumes:
-      - "rails_pipeline_example_storage:/rails/storage"
-  YAML
-}
-
-# Create test files
-test_files.each do |path, content|
-  full_path = File.join(test_dir, path)
-  FileUtils.mkdir_p(File.dirname(full_path))
-  File.write(full_path, content)
-end
-
-# Copy the rename script
-script_path = File.join(test_dir, "bin")
-FileUtils.mkdir_p(script_path)
-FileUtils.cp("bin/rename_application", File.join(script_path, "rename_application"))
-
-puts "\nCreated test files."
-puts "Running rename script with 'my-cool-app'..."
-
-# Run the rename script
-Dir.chdir(test_dir) do
-  # We need to simulate answering 'y' to the confirmation
-  IO.popen("echo 'y' | ruby bin/rename_application my-cool-app", "r") do |pipe|
-    output = pipe.read
-    puts "\nScript output:"
-    puts output
   end
+  
+  puts "\nVerifying changes..."
+  
+  # Verify the changes
+  errors = []
+  
+  # Run custom checks
+  expected_checks.each do |check|
+    begin
+      check.call(test_dir)
+    rescue => e
+      errors << e.message
+    end
+  end
+  
+  # Report results
+  puts "\n" + "=" * 70
+  if errors.empty?
+    puts "✓ #{test_name} passed!"
+  else
+    puts "✗ #{test_name} failed!"
+    puts "=" * 70
+    errors.each do |error|
+      puts "  ✗ #{error}"
+    end
+    puts "\nTest directory preserved for inspection: #{test_dir}"
+    return false
+  end
+  
+  # Cleanup
+  FileUtils.rm_rf(test_dir)
+  puts "Test directory cleaned up."
+  
+  true
 end
 
-puts "\nVerifying changes..."
+# Test 1: Basic rename without GitHub owner
+test1_passed = run_test(
+  "Basic application rename",
+  "my-cool-app",
+  [
+    ->(dir) {
+      app_rb = File.read(File.join(dir, "config/application.rb"))
+      raise "Module name not updated" unless app_rb.include?("module MyCoolApp")
+      raise "Old module name still present" if app_rb.include?("RailsPipelineExample")
+    },
+    ->(dir) {
+      readme = File.read(File.join(dir, "README.md"))
+      raise "Kebab-case name not updated" unless readme.include?("my-cool-app")
+      raise "Snake-case name not updated" unless readme.include?("my_cool_app")
+      raise "Old kebab name still present" if readme.include?("rails-pipeline-example")
+    },
+    ->(dir) {
+      dockerfile = File.read(File.join(dir, "Dockerfile"))
+      raise "Dockerfile not updated" unless dockerfile.include?("my_cool_app")
+      raise "Old name in Dockerfile" if dockerfile.include?("rails_pipeline_example")
+    },
+    ->(dir) {
+      deploy = File.read(File.join(dir, "config/deploy.yml"))
+      raise "Deploy service not updated" unless deploy.include?("service: my_cool_app")
+      raise "Deploy volume not updated" unless deploy.include?("my_cool_app_storage")
+    }
+  ]
+)
 
-# Verify the changes
-errors = []
+# Test 2: Rename with GitHub owner
+test2_passed = run_test(
+  "Application rename with GitHub owner",
+  "awesome-rails myusername",
+  [
+    ->(dir) {
+      app_rb = File.read(File.join(dir, "config/application.rb"))
+      raise "Module name not updated" unless app_rb.include?("module AwesomeRails")
+    },
+    ->(dir) {
+      readme = File.read(File.join(dir, "README.md"))
+      raise "App name not updated" unless readme.include?("awesome-rails")
+      raise "GitHub owner not updated" unless readme.include?("myusername")
+      raise "Old GitHub owner still present" if readme.include?("davidleechen")
+      raise "Old app name still present" if readme.include?("rails-pipeline-example")
+    }
+  ]
+)
 
-# Check config/application.rb
-app_rb = File.read(File.join(test_dir, "config/application.rb"))
-unless app_rb.include?("module MyCoolApp")
-  errors << "config/application.rb: Expected 'module MyCoolApp', still has old name"
-end
-
-# Check README.md
-readme = File.read(File.join(test_dir, "README.md"))
-unless readme.include?("my-cool-app") && readme.include?("my_cool_app")
-  errors << "README.md: Expected 'my-cool-app' and 'my_cool_app', still has old name"
-end
-
-# Check Dockerfile
-dockerfile = File.read(File.join(test_dir, "Dockerfile"))
-unless dockerfile.include?("my_cool_app")
-  errors << "Dockerfile: Expected 'my_cool_app', still has old name"
-end
-
-# Check config/deploy.yml
-deploy = File.read(File.join(test_dir, "config/deploy.yml"))
-unless deploy.include?("service: my_cool_app") && deploy.include?("my_cool_app_storage")
-  errors << "config/deploy.yml: Expected 'my_cool_app' variations, still has old name"
-end
-
-# Ensure old names are gone
-if app_rb.include?("RailsPipelineExample")
-  errors << "config/application.rb: Old name 'RailsPipelineExample' still present"
-end
-if readme.include?("rails-pipeline-example")
-  errors << "README.md: Old name 'rails-pipeline-example' still present"
-end
-
-# Report results
 puts "\n" + "=" * 70
-if errors.empty?
-  puts "✓ All tests passed!"
-  puts "=" * 70
-  puts "\nVerified changes:"
-  puts "  - Module name: RailsPipelineExample → MyCoolApp"
-  puts "  - Kebab case: rails-pipeline-example → my-cool-app"
-  puts "  - Snake case: rails_pipeline_example → my_cool_app"
-else
-  puts "✗ Tests failed!"
-  puts "=" * 70
-  errors.each do |error|
-    puts "  ✗ #{error}"
-  end
-  puts "\nTest directory preserved for inspection: #{test_dir}"
-  exit 1
-end
+puts "Test Summary"
+puts "=" * 70
+puts "Test 1 (Basic rename): #{test1_passed ? '✓ PASSED' : '✗ FAILED'}"
+puts "Test 2 (Rename with owner): #{test2_passed ? '✓ PASSED' : '✗ FAILED'}"
+puts "=" * 70
 
-# Cleanup
-FileUtils.rm_rf(test_dir)
-puts "\nTest directory cleaned up."
-puts "Test completed successfully!"
+exit(test1_passed && test2_passed ? 0 : 1)
