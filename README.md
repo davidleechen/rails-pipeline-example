@@ -2,6 +2,22 @@
 This repository is a stock rails project created to demonstrate a fully
 functional deployment pipeline to Kubernetes.
 
+## Using as a Template
+
+This repository can be used as a template for new Rails applications. See [TEMPLATE.md](TEMPLATE.md) for detailed instructions on:
+
+- Creating a new application from this template
+- Renaming the application using the `bin/rename_application` script
+- Configuring deployment settings
+- Setting up CI/CD pipelines
+
+**Quick Start:**
+```bash
+# After creating a repository from this template:
+bin/rename_application your-app-name
+# Review changes, update GitHub owner, and commit
+```
+
 ## Project Creation
 The excellent [rails-new](https://github.com/rails/rails-new) project is used
 to create a new Rails project without needing local dependencies besides

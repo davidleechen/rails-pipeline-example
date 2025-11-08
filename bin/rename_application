@@ -1,0 +1,140 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "fileutils"
+
+# This script renames the Rails application throughout the repository
+# Usage: bin/rename_application <new-app-name>
+
+def snake_case(str)
+  str.gsub("-", "_")
+end
+
+def camel_case(str)
+  str.split(/[-_]/).map(&:capitalize).join
+end
+
+def kebab_case(str)
+  str.gsub("_", "-")
+end
+
+def print_usage
+  puts <<~USAGE
+    Usage: bin/rename_application <new-app-name>
+    
+    This script renames the Rails application throughout the repository.
+    The new app name should be in kebab-case (e.g., my-app-name).
+    
+    Example:
+      bin/rename_application my-awesome-app
+    
+    This will update:
+      - Ruby module name (config/application.rb)
+      - Docker image names
+      - Kubernetes configurations
+      - GitHub workflow files
+      - Kamal deployment configuration
+      - Documentation
+  USAGE
+end
+
+if ARGV.length != 1
+  print_usage
+  exit 1
+end
+
+new_name_kebab = ARGV[0]
+
+unless new_name_kebab =~ /^[a-z][a-z0-9-]*$/
+  puts "Error: App name must be in kebab-case (lowercase letters, numbers, and hyphens only)"
+  puts "       and must start with a letter."
+  exit 1
+end
+
+# Define name variations
+OLD_NAME_KEBAB = "rails-pipeline-example"
+OLD_NAME_SNAKE = "rails_pipeline_example"
+OLD_NAME_CAMEL = "RailsPipelineExample"
+
+new_name_snake = snake_case(new_name_kebab)
+new_name_camel = camel_case(new_name_kebab)
+
+puts "=" * 70
+puts "Rails Application Renaming Script"
+puts "=" * 70
+puts
+puts "Old name (kebab): #{OLD_NAME_KEBAB}"
+puts "Old name (snake): #{OLD_NAME_SNAKE}"
+puts "Old name (camel): #{OLD_NAME_CAMEL}"
+puts
+puts "New name (kebab): #{new_name_kebab}"
+puts "New name (snake): #{new_name_snake}"
+puts "New name (camel): #{new_name_camel}"
+puts
+puts "=" * 70
+puts
+
+# Ask for confirmation
+print "Continue with renaming? (y/n): "
+confirmation = STDIN.gets.chomp.downcase
+unless confirmation == "y" || confirmation == "yes"
+  puts "Renaming cancelled."
+  exit 0
+end
+
+puts "\nRenaming application..."
+
+# Function to replace content in a file
+def replace_in_file(file_path, replacements)
+  return unless File.exist?(file_path)
+  
+  content = File.read(file_path)
+  original_content = content.dup
+  
+  replacements.each do |old_text, new_text|
+    content.gsub!(old_text, new_text)
+  end
+  
+  if content != original_content
+    File.write(file_path, content)
+    puts "  ✓ Updated: #{file_path}"
+  end
+end
+
+# Define replacements
+replacements = {
+  OLD_NAME_CAMEL => new_name_camel,
+  OLD_NAME_KEBAB => new_name_kebab,
+  OLD_NAME_SNAKE => new_name_snake
+}
+
+# Files to update
+files_to_update = [
+  "config/application.rb",
+  "config/environment.rb",
+  "config/deploy.yml",
+  "README.md",
+  "Dockerfile",
+  ".github/workflows/build-check.yml"
+]
+
+puts "\nUpdating files:"
+files_to_update.each do |file|
+  replace_in_file(file, replacements)
+end
+
+puts "\n" + "=" * 70
+puts "Renaming complete!"
+puts "=" * 70
+puts
+puts "Next steps:"
+puts "  1. Review the changes: git diff"
+puts "  2. Update your GitHub repository owner in README.md if needed"
+puts "  3. Update config/deploy.yml with your deployment settings"
+puts "  4. Commit the changes: git add . && git commit -m 'Rename application to #{new_name_kebab}'"
+puts
+puts "Note: If you're using this as a template, you may also want to:"
+puts "  - Update the GitHub repository URLs in README.md"
+puts "  - Configure your container registry in config/deploy.yml"
+puts "  - Set up your deployment servers and domains"
+puts

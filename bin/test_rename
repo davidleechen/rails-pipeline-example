@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Test script for bin/rename_application
+# This creates a temporary copy, runs the rename, and verifies the changes
+
+require "fileutils"
+require "tmpdir"
+
+puts "=" * 70
+puts "Testing bin/rename_application script"
+puts "=" * 70
+puts
+
+# Create a temporary directory for testing
+test_dir = Dir.mktmpdir("rename_test_")
+puts "Created test directory: #{test_dir}"
+
+# Files we'll test
+test_files = {
+  "config/application.rb" => <<~RUBY,
+    module RailsPipelineExample
+      class Application < Rails::Application
+        config.load_defaults 8.0
+      end
+    end
+  RUBY
+  "README.md" => <<~MD,
+    # rails-pipeline-example
+    Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
+    Service: rails_pipeline_example
+  MD
+  "Dockerfile" => <<~DOCKER,
+    # docker build -t rails_pipeline_example .
+    # docker run --name rails_pipeline_example rails_pipeline_example
+  DOCKER
+  "config/deploy.yml" => <<~YAML
+    service: rails_pipeline_example
+    image: your-user/rails_pipeline_example
+    volumes:
+      - "rails_pipeline_example_storage:/rails/storage"
+  YAML
+}
+
+# Create test files
+test_files.each do |path, content|
+  full_path = File.join(test_dir, path)
+  FileUtils.mkdir_p(File.dirname(full_path))
+  File.write(full_path, content)
+end
+
+# Copy the rename script
+script_path = File.join(test_dir, "bin")
+FileUtils.mkdir_p(script_path)
+FileUtils.cp("bin/rename_application", File.join(script_path, "rename_application"))
+
+puts "\nCreated test files."
+puts "Running rename script with 'my-cool-app'..."
+
+# Run the rename script
+Dir.chdir(test_dir) do
+  # We need to simulate answering 'y' to the confirmation
+  IO.popen("echo 'y' | ruby bin/rename_application my-cool-app", "r") do |pipe|
+    output = pipe.read
+    puts "\nScript output:"
+    puts output
+  end
+end
+
+puts "\nVerifying changes..."
+
+# Verify the changes
+errors = []
+
+# Check config/application.rb
+app_rb = File.read(File.join(test_dir, "config/application.rb"))
+unless app_rb.include?("module MyCoolApp")
+  errors << "config/application.rb: Expected 'module MyCoolApp', still has old name"
+end
+
+# Check README.md
+readme = File.read(File.join(test_dir, "README.md"))
+unless readme.include?("my-cool-app") && readme.include?("my_cool_app")
+  errors << "README.md: Expected 'my-cool-app' and 'my_cool_app', still has old name"
+end
+
+# Check Dockerfile
+dockerfile = File.read(File.join(test_dir, "Dockerfile"))
+unless dockerfile.include?("my_cool_app")
+  errors << "Dockerfile: Expected 'my_cool_app', still has old name"
+end
+
+# Check config/deploy.yml
+deploy = File.read(File.join(test_dir, "config/deploy.yml"))
+unless deploy.include?("service: my_cool_app") && deploy.include?("my_cool_app_storage")
+  errors << "config/deploy.yml: Expected 'my_cool_app' variations, still has old name"
+end
+
+# Ensure old names are gone
+if app_rb.include?("RailsPipelineExample")
+  errors << "config/application.rb: Old name 'RailsPipelineExample' still present"
+end
+if readme.include?("rails-pipeline-example")
+  errors << "README.md: Old name 'rails-pipeline-example' still present"
+end
+
+# Report results
+puts "\n" + "=" * 70
+if errors.empty?
+  puts "✓ All tests passed!"
+  puts "=" * 70
+  puts "\nVerified changes:"
+  puts "  - Module name: RailsPipelineExample → MyCoolApp"
+  puts "  - Kebab case: rails-pipeline-example → my-cool-app"
+  puts "  - Snake case: rails_pipeline_example → my_cool_app"
+else
+  puts "✗ Tests failed!"
+  puts "=" * 70
+  errors.each do |error|
+    puts "  ✗ #{error}"
+  end
+  puts "\nTest directory preserved for inspection: #{test_dir}"
+  exit 1
+end
+
+# Cleanup
+FileUtils.rm_rf(test_dir)
+puts "\nTest directory cleaned up."
+puts "Test completed successfully!"
