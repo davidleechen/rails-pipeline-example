@@ -3,7 +3,7 @@
 
 template:
   name: "Rails Pipeline Example"
-  description: "A Rails 8.0 application template with complete CI/CD pipeline and Kubernetes deployment"
+  description: "A Rails 8.1 application template with complete CI/CD pipeline and Kubernetes deployment"
   
 # Files/folders to exclude when creating a new repository from this template
 # (This is informational - GitHub's template feature handles this automatically)
