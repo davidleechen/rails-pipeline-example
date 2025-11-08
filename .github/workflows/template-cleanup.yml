@@ -16,6 +16,10 @@ jobs:
     # Only run if this appears to be a repository created from the template
     if: github.event.repository.name != 'rails-pipeline-example'
     
+    permissions:
+      contents: read
+      issues: write
+    
     steps:
       - name: Check if cleanup is needed
         id: check
