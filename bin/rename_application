@@ -17,6 +17,11 @@ camel_case() {
     echo "$1" | sed -E 's/(^|[-_])([a-z])/\U\2/g'
 }
 
+title_case() {
+    # First replace hyphens with spaces, then capitalize first letter of each word
+    echo "$1" | sed 's/-/ /g' | sed -E 's/(^| )([a-z])/\1\U\2/g'
+}
+
 print_usage() {
     cat << 'EOF'
 Usage: bin/rename_application <new-app-name> [github-owner]
@@ -71,11 +76,13 @@ fi
 OLD_NAME_KEBAB="rails-pipeline-example"
 OLD_NAME_SNAKE="rails_pipeline_example"
 OLD_NAME_CAMEL="RailsPipelineExample"
+OLD_NAME_TITLE="Rails Pipeline Example"
 OLD_GITHUB_OWNER="davidleechen"
 
 # Generate new name variations
 new_name_snake=$(snake_case "$new_name_kebab")
 new_name_camel=$(camel_case "$new_name_kebab")
+new_name_title=$(title_case "$new_name_kebab")
 
 # Display summary
 echo "======================================================================"
@@ -85,6 +92,7 @@ echo
 echo "Old name (kebab): $OLD_NAME_KEBAB"
 echo "Old name (snake): $OLD_NAME_SNAKE"
 echo "Old name (camel): $OLD_NAME_CAMEL"
+echo "Old name (title): $OLD_NAME_TITLE"
 if [ -n "$new_github_owner" ]; then
     echo "Old GitHub owner: $OLD_GITHUB_OWNER"
 fi
@@ -92,6 +100,7 @@ echo
 echo "New name (kebab): $new_name_kebab"
 echo "New name (snake): $new_name_snake"
 echo "New name (camel): $new_name_camel"
+echo "New name (title): $new_name_title"
 if [ -n "$new_github_owner" ]; then
     echo "New GitHub owner: $new_github_owner"
 fi
@@ -147,14 +156,18 @@ files_to_update=(
     "README.md"
     "Dockerfile"
     ".github/workflows/build-check.yml"
+    ".devcontainer/devcontainer.json"
+    ".devcontainer/compose.yaml"
+    "app/views/pwa/manifest.json.erb"
 )
 
 echo
 echo "Updating files:"
 
-# Perform replacements - order matters (CamelCase first to avoid partial matches)
+# Perform replacements - order matters (Title case and CamelCase first to avoid partial matches)
 for file in "${files_to_update[@]}"; do
     if [ -f "$file" ]; then
+        replace_in_file "$file" "$OLD_NAME_TITLE" "$new_name_title"
         replace_in_file "$file" "$OLD_NAME_CAMEL" "$new_name_camel"
         replace_in_file "$file" "$OLD_NAME_KEBAB" "$new_name_kebab"
         replace_in_file "$file" "$OLD_NAME_SNAKE" "$new_name_snake"

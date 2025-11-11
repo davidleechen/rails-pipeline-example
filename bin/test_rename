@@ -22,6 +22,8 @@ run_test() {
     
     # Create test files
     mkdir -p "$test_dir/config"
+    mkdir -p "$test_dir/.devcontainer"
+    mkdir -p "$test_dir/app/views/pwa"
     
     cat > "$test_dir/config/application.rb" << 'EOF'
 module RailsPipelineExample
@@ -32,7 +34,7 @@ end
 EOF
     
     cat > "$test_dir/README.md" << 'EOF'
-# rails-pipeline-example
+# Rails Pipeline Example
 Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
 Service: rails_pipeline_example
 Owner: davidleechen
@@ -48,6 +50,23 @@ service: rails_pipeline_example
 image: your-user/rails_pipeline_example
 volumes:
   - "rails_pipeline_example_storage:/rails/storage"
+EOF
+
+    cat > "$test_dir/.devcontainer/devcontainer.json" << 'EOF'
+{
+  "name": "rails_pipeline_example"
+}
+EOF
+
+    cat > "$test_dir/.devcontainer/compose.yaml" << 'EOF'
+name: "rails_pipeline_example"
+EOF
+
+    cat > "$test_dir/app/views/pwa/manifest.json.erb" << 'EOF'
+{
+  "name": "RailsPipelineExample",
+  "description": "RailsPipelineExample."
+}
 EOF
     
     # Copy the rename script
@@ -87,14 +106,22 @@ EOF
         fi
     fi
     
-    # Check 2: README.md updates
+    # Check 2: README.md updates (including title case)
     if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "My Cool App" "$test_dir/README.md"; then
+            errors+=("Title case name not updated in README")
+            test_passed=false
+        fi
         if ! grep -q "my-cool-app" "$test_dir/README.md"; then
             errors+=("Kebab-case name not updated in README")
             test_passed=false
         fi
         if ! grep -q "my_cool_app" "$test_dir/README.md"; then
             errors+=("Snake-case name not updated in README")
+            test_passed=false
+        fi
+        if grep -q "Rails Pipeline Example" "$test_dir/README.md"; then
+            errors+=("Old title case name still present in README")
             test_passed=false
         fi
         if grep -q "rails-pipeline-example" "$test_dir/README.md"; then
@@ -132,7 +159,35 @@ EOF
         fi
     fi
     
-    # Check 5: GitHub owner updates
+    # Check 5: devcontainer.json updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my_cool_app" "$test_dir/.devcontainer/devcontainer.json"; then
+            errors+=("devcontainer.json not updated")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 6: compose.yaml updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my_cool_app" "$test_dir/.devcontainer/compose.yaml"; then
+            errors+=("compose.yaml not updated")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 7: manifest.json.erb updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "MyCoolApp" "$test_dir/app/views/pwa/manifest.json.erb"; then
+            errors+=("manifest.json.erb not updated with CamelCase name")
+            test_passed=false
+        fi
+        if grep -q "RailsPipelineExample" "$test_dir/app/views/pwa/manifest.json.erb"; then
+            errors+=("Old CamelCase name still in manifest.json.erb")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 8: GitHub owner updates
     if echo "$script_args" | grep -q "myusername"; then
         if ! grep -q "myusername" "$test_dir/README.md"; then
             errors+=("GitHub owner not updated to myusername")
