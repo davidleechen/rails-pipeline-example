@@ -22,7 +22,7 @@ detect_github_owner() {
         owner="${BASH_REMATCH[1]}"
     fi
     
-    if [ -n "$owner" ] && [ "$owner" != "davidleechen" ]; then
+    if [ -n "$owner" ]; then
         echo "$owner"
         return 0
     fi
