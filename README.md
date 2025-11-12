@@ -17,8 +17,8 @@ This repository can be used as a template for new Rails applications. See [TEMPL
 **Quick Start:**
 ```bash
 # After creating a repository from this template:
-bin/rename_application your-app-name
-# Review changes, update GitHub owner (davidleechen → your-username), and commit
+bin/rename_application your-app-name your-github-username
+# Review changes and commit
 ```
 
 ### What's Included

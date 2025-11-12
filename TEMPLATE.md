@@ -9,12 +9,12 @@ This repository serves as a template for creating new Rails applications with a 
 1. Click "Use this template" on GitHub to create a new repository
 2. Clone your new repository locally
 
-### Step 2: Rename the Application
+### Step 2: Rename the Application and Set Owner
 
-Run the rename script with your desired application name (in kebab-case):
+Run the rename script with your desired application name (in kebab-case) and your GitHub username:
 
 ```bash
-bin/rename_application my-awesome-app
+bin/rename_application my-awesome-app your-github-username
 ```
 
 This will update:
@@ -23,20 +23,9 @@ This will update:
 - Kubernetes configurations in `README.md`
 - Kamal deployment configuration in `config/deploy.yml`
 - GitHub Actions workflow files
+- GitHub owner references throughout the repository
 
-### Step 3: Update Repository Owner
-
-If your GitHub username or organization is different from the original, update:
-
-1. **README.md**: Replace `davidleechen` with your GitHub username/org in:
-   - GitHub Actions links
-   - Container registry image paths (`ghcr.io/YOUR-USERNAME/your-app-name`)
-
-2. **config/deploy.yml**: Update the registry settings:
-   - `image:` field with your registry and image name
-   - `registry.username:` with your registry username
-
-### Step 4: Configure Deployment
+### Step 3: Configure Deployment
 
 Update `config/deploy.yml` with your deployment configuration:
 
@@ -53,14 +42,14 @@ registry:
   username: YOUR_REGISTRY_USERNAME  # For Docker Hub, GitHub Container Registry, etc.
 ```
 
-### Step 5: Set Up Secrets
+### Step 4: Set Up Secrets
 
 Configure the following secrets in your GitHub repository (Settings → Secrets and variables → Actions):
 
 - `KAMAL_REGISTRY_PASSWORD`: Your container registry password/token
 - Other secrets as needed for your deployment
 
-### Step 6: Customize
+### Step 5: Customize
 
 Feel free to modify:
 - Add your own models, controllers, and views

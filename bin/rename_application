@@ -1,6 +1,6 @@
 #!/bin/bash
 # This script renames the Rails application throughout the repository
-# Usage: bin/rename_application <new-app-name> [github-owner]
+# Usage: bin/rename_application <new-app-name> <github-owner>
 
 set -e
 
@@ -24,17 +24,16 @@ title_case() {
 
 print_usage() {
     cat << 'EOF'
-Usage: bin/rename_application <new-app-name> [github-owner]
+Usage: bin/rename_application <new-app-name> <github-owner>
 
 This script renames the Rails application throughout the repository.
 The new app name should be in kebab-case (e.g., my-app-name).
 
 Arguments:
   new-app-name    The new name for your application (required, kebab-case)
-  github-owner    Your GitHub username or organization (optional)
+  github-owner    Your GitHub username or organization (required)
 
 Example:
-  bin/rename_application my-awesome-app
   bin/rename_application my-awesome-app myusername
 
 This will update:
@@ -44,18 +43,18 @@ This will update:
   - GitHub workflow files
   - Kamal deployment configuration
   - Documentation
-  - GitHub owner references (if provided)
+  - GitHub owner references
 EOF
 }
 
-# Check arguments
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+# Check arguments - both app name and github owner are required
+if [ $# -ne 2 ]; then
     print_usage
     exit 1
 fi
 
 new_name_kebab="$1"
-new_github_owner="${2:-}"
+new_github_owner="$2"
 
 # Validate app name format (kebab-case)
 if ! echo "$new_name_kebab" | grep -qE '^[a-z][a-z0-9-]*$'; then
@@ -64,12 +63,10 @@ if ! echo "$new_name_kebab" | grep -qE '^[a-z][a-z0-9-]*$'; then
     exit 1
 fi
 
-# Validate GitHub owner format if provided
-if [ -n "$new_github_owner" ]; then
-    if ! echo "$new_github_owner" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9-]*$'; then
-        echo "Error: GitHub owner must be valid (letters, numbers, and hyphens only)"
-        exit 1
-    fi
+# Validate GitHub owner format (always required now)
+if ! echo "$new_github_owner" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9-]*$'; then
+    echo "Error: GitHub owner must be valid (letters, numbers, and hyphens only)"
+    exit 1
 fi
 
 # Define old name variations
@@ -93,17 +90,13 @@ echo "Old name (kebab): $OLD_NAME_KEBAB"
 echo "Old name (snake): $OLD_NAME_SNAKE"
 echo "Old name (camel): $OLD_NAME_CAMEL"
 echo "Old name (title): $OLD_NAME_TITLE"
-if [ -n "$new_github_owner" ]; then
-    echo "Old GitHub owner: $OLD_GITHUB_OWNER"
-fi
+echo "Old GitHub owner: $OLD_GITHUB_OWNER"
 echo
 echo "New name (kebab): $new_name_kebab"
 echo "New name (snake): $new_name_snake"
 echo "New name (camel): $new_name_camel"
 echo "New name (title): $new_name_title"
-if [ -n "$new_github_owner" ]; then
-    echo "New GitHub owner: $new_github_owner"
-fi
+echo "New GitHub owner: $new_github_owner"
 echo
 echo "======================================================================"
 echo
@@ -172,10 +165,7 @@ for file in "${files_to_update[@]}"; do
         replace_in_file "$file" "$OLD_NAME_CAMEL" "$new_name_camel"
         replace_in_file "$file" "$OLD_NAME_KEBAB" "$new_name_kebab"
         replace_in_file "$file" "$OLD_NAME_SNAKE" "$new_name_snake"
-        
-        if [ -n "$new_github_owner" ]; then
-            replace_in_file "$file" "$OLD_GITHUB_OWNER" "$new_github_owner"
-        fi
+        replace_in_file "$file" "$OLD_GITHUB_OWNER" "$new_github_owner"
     fi
 done
 
@@ -186,12 +176,7 @@ echo "======================================================================"
 echo
 echo "Next steps:"
 echo "  1. Review the changes: git diff"
-if [ -n "$new_github_owner" ]; then
-    echo "  2. ✓ GitHub owner updated to: $new_github_owner"
-else
-    echo "  2. Update your GitHub repository owner in README.md if needed"
-    echo "     Hint: Run this script again with: bin/rename_application $new_name_kebab YOUR-USERNAME"
-fi
+echo "  2. ✓ GitHub owner updated to: $new_github_owner"
 echo "  3. Update config/deploy.yml with your deployment settings"
 echo "  4. Commit the changes: git add . && git commit -m 'Rename application to $new_name_kebab'"
 echo

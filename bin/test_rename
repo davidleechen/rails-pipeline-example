@@ -204,14 +204,25 @@ EOF
         fi
     fi
     
-    # Check 9: GitHub owner updates
+    # Check 9: GitHub owner updates (always required now)
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "testuser1" "$test_dir/README.md"; then
+            errors+=("GitHub owner not updated to testuser1")
+            test_passed=false
+        fi
+        if grep -q "davidleechen" "$test_dir/README.md"; then
+            errors+=("Old GitHub owner 'davidleechen' still present in README")
+            test_passed=false
+        fi
+    fi
+    
     if echo "$script_args" | grep -q "myusername"; then
         if ! grep -q "myusername" "$test_dir/README.md"; then
             errors+=("GitHub owner not updated to myusername")
             test_passed=false
         fi
         if grep -q "davidleechen" "$test_dir/README.md"; then
-            errors+=("Old GitHub owner still present")
+            errors+=("Old GitHub owner 'davidleechen' still present in README")
             test_passed=false
         fi
     fi
@@ -243,15 +254,15 @@ echo "======================================================================"
 echo "Testing bin/rename_application script"
 echo "======================================================================"
 
-# Test 1: Basic rename without GitHub owner
+# Test 1: Rename with GitHub owner (testuser1)
 test1_passed=false
-if run_test "Basic application rename (my-cool-app)" "my-cool-app"; then
+if run_test "Application rename (my-cool-app)" "my-cool-app testuser1"; then
     test1_passed=true
 fi
 
-# Test 2: Rename with GitHub owner
+# Test 2: Rename with different GitHub owner (myusername)
 test2_passed=false
-if run_test "Application rename with GitHub owner (awesome-rails)" "awesome-rails myusername"; then
+if run_test "Application rename with different owner (awesome-rails)" "awesome-rails myusername"; then
     test2_passed=true
 fi
 
@@ -260,14 +271,14 @@ echo "======================================================================"
 echo "Test Summary"
 echo "======================================================================"
 if [ "$test1_passed" = true ]; then
-    echo "Test 1 (Basic rename): ✓ PASSED"
+    echo "Test 1 (Rename with owner): ✓ PASSED"
 else
-    echo "Test 1 (Basic rename): ✗ FAILED"
+    echo "Test 1 (Rename with owner): ✗ FAILED"
 fi
 if [ "$test2_passed" = true ]; then
-    echo "Test 2 (Rename with owner): ✓ PASSED"
+    echo "Test 2 (Rename with different owner): ✓ PASSED"
 else
-    echo "Test 2 (Rename with owner): ✗ FAILED"
+    echo "Test 2 (Rename with different owner): ✗ FAILED"
 fi
 echo "======================================================================"
 
