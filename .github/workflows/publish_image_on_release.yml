@@ -53,7 +53,6 @@ jobs:
           ARGOCD_OWNER: ${{ vars.ARGOCD_OWNER }}
           ARGOCD_REPO: ${{ vars.ARGOCD_REPO }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-          CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
           TARGET_MANIFEST: ${{ vars.TARGET_MANIFEST }}
         run: |
           if [ -z "$ARGOCD_PAT" ]; then
