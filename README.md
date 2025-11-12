@@ -48,8 +48,7 @@ GitHub Action workflow runs automatically generate a token that allows pushing t
 a repository-scoped container registry.
 
 ## Deployment
-The following Kubernetes config was used to deploy into a cluster.
-
+The following Kubernetes config was used to deploy into a cluster. The path to this file is the `TARGET_MANIFEST`.
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -69,7 +68,7 @@ spec:
     spec:
       containers:
       - name: rails-pipeline-example
-        image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
+        image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2 # This image without the tag is the `IMAGE_NAME`.
         ports:
         - containerPort: 3000
         env:
@@ -112,3 +111,35 @@ spec:
         path: /
         pathType: Prefix
 ```
+
+### ArgoCD Integration
+
+The release workflow includes an optional step to automatically update image tags in a separate repository used by ArgoCD for GitOps deployments. When enabled, publishing a release will:
+
+1. Build and push the Docker image to the GitHub Container Registry
+2. Automatically update the image tag in your ArgoCD manifest repository
+3. Trigger ArgoCD to deploy the new version to your Kubernetes cluster
+
+#### Setup
+
+To enable ArgoCD integration, configure the following in your GitHub repository settings:
+
+**Secrets** (Settings → Secrets and variables → Actions → Secrets):
+- `ARGOCD_PAT`: A Personal Access Token with write permissions to your ArgoCD manifest repository. As of this publication that means `Contents: Read/Write`.
+
+**Variables** (Settings → Secrets and variables → Actions → Variables):
+- `ARGOCD_USER`: GitHub username for authentication
+- `ARGOCD_OWNER`: GitHub owner/organization of the ArgoCD manifest repository
+- `ARGOCD_REPO`: Name of the ArgoCD manifest repository
+- `IMAGE_NAME`: Full image name (e.g., `ghcr.io/owner/repo`)
+- `TARGET_MANIFEST`: Path to the manifest file to update (e.g., `manifests/production.yaml`)
+
+#### How It Works
+
+When a new release is published, the workflow:
+1. Clones your ArgoCD manifest repository
+2. Updates the image tag in the specified manifest file using `sed`
+3. Commits the change with a message like "Update image tag to v1.0.0 via release automation"
+4. Pushes the update to the main branch
+
+If `ARGOCD_PAT` is not set, this step is safely skipped, allowing the workflow to function without ArgoCD integration.
