@@ -25,7 +25,7 @@ bin/rename_application your-app-name your-github-username
 
 ### What's Included
 
-✅ **Rails 8.0** - Latest Rails with modern defaults  
+✅ **Rails 8.1** - Latest Rails with modern defaults  
 ✅ **Docker** - Production-ready Dockerfile  
 ✅ **GitHub Actions CI/CD** - Security scanning, linting, testing, and automated releases  
 ✅ **Kamal Deployment** - Deploy to any server with zero-downtime  
