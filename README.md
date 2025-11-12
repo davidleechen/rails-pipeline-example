@@ -67,7 +67,7 @@ spec:
         app: rails-pipeline-example
     spec:
       containers:
-      - name: rails-pipeline-example # This is the `CONTAINER_NAME`.
+      - name: rails-pipeline-example
         image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2 # This image without the tag is the `IMAGE_NAME`.
         ports:
         - containerPort: 3000
@@ -132,7 +132,6 @@ To enable ArgoCD integration, configure the following in your GitHub repository 
 - `ARGOCD_OWNER`: GitHub owner/organization of the ArgoCD manifest repository
 - `ARGOCD_REPO`: Name of the ArgoCD manifest repository
 - `IMAGE_NAME`: Full image name (e.g., `ghcr.io/owner/repo`)
-- `CONTAINER_NAME`: Name of the container in your Kubernetes manifest
 - `TARGET_MANIFEST`: Path to the manifest file to update (e.g., `manifests/production.yaml`)
 
 #### How It Works
