@@ -79,6 +79,15 @@ EOF
     cp "bin/rename_application" "$test_dir/bin/rename_application"
     chmod +x "$test_dir/bin/rename_application"
     
+    # Set up a fake git repository if testing auto-detection
+    if ! echo "$script_args" | grep -q " "; then
+        # No owner provided in args, set up git remote for auto-detection
+        cd "$test_dir"
+        git init > /dev/null 2>&1
+        git remote add origin "https://github.com/testuser1/test-repo.git" > /dev/null 2>&1
+        cd - > /dev/null
+    fi
+    
     echo "Running: bin/rename_application $script_args"
     
     # Run the rename script
@@ -207,7 +216,7 @@ EOF
     # Check 9: GitHub owner updates (always required now)
     if echo "$test_name" | grep -q "my-cool-app"; then
         if ! grep -q "testuser1" "$test_dir/README.md"; then
-            errors+=("GitHub owner not updated to testuser1")
+            errors+=("GitHub owner not updated to testuser1 (auto-detected)")
             test_passed=false
         fi
         if grep -q "davidleechen" "$test_dir/README.md"; then
@@ -219,6 +228,17 @@ EOF
     if echo "$script_args" | grep -q "myusername"; then
         if ! grep -q "myusername" "$test_dir/README.md"; then
             errors+=("GitHub owner not updated to myusername")
+            test_passed=false
+        fi
+        if grep -q "davidleechen" "$test_dir/README.md"; then
+            errors+=("Old GitHub owner 'davidleechen' still present in README")
+            test_passed=false
+        fi
+    fi
+    
+    if echo "$script_args" | grep -q "another-user"; then
+        if ! grep -q "another-user" "$test_dir/README.md"; then
+            errors+=("GitHub owner not updated to another-user")
             test_passed=false
         fi
         if grep -q "davidleechen" "$test_dir/README.md"; then
@@ -254,16 +274,22 @@ echo "======================================================================"
 echo "Testing bin/rename_application script"
 echo "======================================================================"
 
-# Test 1: Rename with GitHub owner (testuser1)
+# Test 1: Rename with auto-detected GitHub owner
 test1_passed=false
-if run_test "Application rename (my-cool-app)" "my-cool-app testuser1"; then
+if run_test "Application rename with auto-detection (my-cool-app)" "my-cool-app"; then
     test1_passed=true
 fi
 
-# Test 2: Rename with different GitHub owner (myusername)
+# Test 2: Rename with explicit GitHub owner (myusername)
 test2_passed=false
-if run_test "Application rename with different owner (awesome-rails)" "awesome-rails myusername"; then
+if run_test "Application rename with explicit owner (awesome-rails)" "awesome-rails myusername"; then
     test2_passed=true
+fi
+
+# Test 3: Rename with different explicit owner (another-user)
+test3_passed=false
+if run_test "Application rename with another owner (super-app)" "super-app another-user"; then
+    test3_passed=true
 fi
 
 echo
@@ -271,14 +297,19 @@ echo "======================================================================"
 echo "Test Summary"
 echo "======================================================================"
 if [ "$test1_passed" = true ]; then
-    echo "Test 1 (Rename with owner): ✓ PASSED"
+    echo "Test 1 (Auto-detection): ✓ PASSED"
 else
-    echo "Test 1 (Rename with owner): ✗ FAILED"
+    echo "Test 1 (Auto-detection): ✗ FAILED"
 fi
 if [ "$test2_passed" = true ]; then
-    echo "Test 2 (Rename with different owner): ✓ PASSED"
+    echo "Test 2 (Explicit owner): ✓ PASSED"
 else
-    echo "Test 2 (Rename with different owner): ✗ FAILED"
+    echo "Test 2 (Explicit owner): ✗ FAILED"
+fi
+if [ "$test3_passed" = true ]; then
+    echo "Test 3 (Another owner): ✓ PASSED"
+else
+    echo "Test 3 (Another owner): ✗ FAILED"
 fi
 echo "======================================================================"
 

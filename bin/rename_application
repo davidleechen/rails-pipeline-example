@@ -1,8 +1,34 @@
 #!/bin/bash
 # This script renames the Rails application throughout the repository
-# Usage: bin/rename_application <new-app-name> <github-owner>
+# Usage: bin/rename_application <new-app-name> [github-owner]
 
 set -e
+
+# Function to detect GitHub owner from git remote
+detect_github_owner() {
+    local remote_url
+    remote_url=$(git remote get-url origin 2>/dev/null || echo "")
+    
+    if [ -z "$remote_url" ]; then
+        return 1
+    fi
+    
+    # Extract owner from various GitHub URL formats:
+    # - https://github.com/owner/repo.git
+    # - git@github.com:owner/repo.git
+    # - https://github.com/owner/repo
+    local owner=""
+    if [[ "$remote_url" =~ github\.com[:/]([a-zA-Z0-9_-]+)/ ]]; then
+        owner="${BASH_REMATCH[1]}"
+    fi
+    
+    if [ -n "$owner" ] && [ "$owner" != "davidleechen" ]; then
+        echo "$owner"
+        return 0
+    fi
+    
+    return 1
+}
 
 # Name conversion functions
 snake_case() {
@@ -24,16 +50,17 @@ title_case() {
 
 print_usage() {
     cat << 'EOF'
-Usage: bin/rename_application <new-app-name> <github-owner>
+Usage: bin/rename_application <new-app-name> [github-owner]
 
 This script renames the Rails application throughout the repository.
 The new app name should be in kebab-case (e.g., my-app-name).
 
 Arguments:
   new-app-name    The new name for your application (required, kebab-case)
-  github-owner    Your GitHub username or organization (required)
+  github-owner    Your GitHub username or organization (optional - auto-detected from git remote if not provided)
 
-Example:
+Examples:
+  bin/rename_application my-awesome-app
   bin/rename_application my-awesome-app myusername
 
 This will update:
@@ -47,14 +74,14 @@ This will update:
 EOF
 }
 
-# Check arguments - both app name and github owner are required
-if [ $# -ne 2 ]; then
+# Check arguments - app name is required, github owner is optional
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     print_usage
     exit 1
 fi
 
 new_name_kebab="$1"
-new_github_owner="$2"
+new_github_owner="${2:-}"
 
 # Validate app name format (kebab-case)
 if ! echo "$new_name_kebab" | grep -qE '^[a-z][a-z0-9-]*$'; then
@@ -63,7 +90,19 @@ if ! echo "$new_name_kebab" | grep -qE '^[a-z][a-z0-9-]*$'; then
     exit 1
 fi
 
-# Validate GitHub owner format (always required now)
+# If GitHub owner not provided, try to auto-detect from git remote
+if [ -z "$new_github_owner" ]; then
+    echo "GitHub owner not provided, attempting to auto-detect from git remote..."
+    if new_github_owner=$(detect_github_owner); then
+        echo "✓ Detected GitHub owner: $new_github_owner"
+    else
+        echo "Error: Could not auto-detect GitHub owner from git remote."
+        echo "       Please provide it as a parameter: bin/rename_application $new_name_kebab YOUR-USERNAME"
+        exit 1
+    fi
+fi
+
+# Validate GitHub owner format
 if ! echo "$new_github_owner" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9-]*$'; then
     echo "Error: GitHub owner must be valid (letters, numbers, and hyphens only)"
     exit 1

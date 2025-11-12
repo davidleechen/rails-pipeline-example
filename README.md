@@ -18,6 +18,8 @@ This repository can be used as a template for new Rails applications. See [TEMPL
 ```bash
 # After creating a repository from this template:
 bin/rename_application your-app-name your-github-username
+# Or let it auto-detect your username from git remote:
+bin/rename_application your-app-name
 # Review changes and commit
 ```
 

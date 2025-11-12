@@ -11,11 +11,17 @@ This repository serves as a template for creating new Rails applications with a 
 
 ### Step 2: Rename the Application and Set Owner
 
-Run the rename script with your desired application name (in kebab-case) and your GitHub username:
+Run the rename script with your desired application name (in kebab-case):
 
 ```bash
+# Option 1: Provide your GitHub username explicitly
 bin/rename_application my-awesome-app your-github-username
+
+# Option 2: Let it auto-detect from your git remote URL
+bin/rename_application my-awesome-app
 ```
+
+The script will auto-detect your GitHub username from the git remote if not provided.
 
 This will update:
 - Ruby module name in `config/application.rb`
