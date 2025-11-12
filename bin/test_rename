@@ -1,0 +1,324 @@
+#!/bin/bash
+# Test script for bin/rename_application
+# This creates a temporary copy, runs the rename, and verifies the changes
+
+set -e
+
+# Track test results
+all_tests_passed=true
+
+run_test() {
+    local test_name="$1"
+    local script_args="$2"
+    
+    echo
+    echo "======================================================================"
+    echo "Test: $test_name"
+    echo "======================================================================"
+    
+    # Create a temporary directory for testing
+    test_dir=$(mktemp -d -t rename_test_XXXXXX)
+    echo "Created test directory: $test_dir"
+    
+    # Create test files
+    mkdir -p "$test_dir/config"
+    mkdir -p "$test_dir/.devcontainer"
+    mkdir -p "$test_dir/app/views/pwa"
+    mkdir -p "$test_dir/app/views/layouts"
+    
+    cat > "$test_dir/config/application.rb" << 'EOF'
+module RailsPipelineExample
+  class Application < Rails::Application
+    config.load_defaults 8.0
+  end
+end
+EOF
+    
+    cat > "$test_dir/README.md" << 'EOF'
+# Rails Pipeline Example
+Image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
+Service: rails_pipeline_example
+Owner: davidleechen
+EOF
+    
+    cat > "$test_dir/Dockerfile" << 'EOF'
+# docker build -t rails_pipeline_example .
+# docker run --name rails_pipeline_example rails_pipeline_example
+EOF
+    
+    cat > "$test_dir/config/deploy.yml" << 'EOF'
+service: rails_pipeline_example
+image: your-user/rails_pipeline_example
+volumes:
+  - "rails_pipeline_example_storage:/rails/storage"
+EOF
+
+    cat > "$test_dir/.devcontainer/devcontainer.json" << 'EOF'
+{
+  "name": "rails_pipeline_example"
+}
+EOF
+
+    cat > "$test_dir/.devcontainer/compose.yaml" << 'EOF'
+name: "rails_pipeline_example"
+EOF
+
+    cat > "$test_dir/app/views/layouts/application.html.erb" << 'EOF'
+<title><%= content_for(:title) || "Rails Pipeline Example" %></title>
+EOF
+
+    cat > "$test_dir/app/views/pwa/manifest.json.erb" << 'EOF'
+{
+  "name": "RailsPipelineExample",
+  "description": "RailsPipelineExample."
+}
+EOF
+    
+    # Copy the rename script
+    mkdir -p "$test_dir/bin"
+    cp "bin/rename_application" "$test_dir/bin/rename_application"
+    chmod +x "$test_dir/bin/rename_application"
+    
+    # Set up a fake git repository if testing auto-detection
+    if ! echo "$script_args" | grep -q " "; then
+        # No owner provided in args, set up git remote for auto-detection
+        cd "$test_dir"
+        git init > /dev/null 2>&1
+        git remote add origin "https://github.com/testuser1/test-repo.git" > /dev/null 2>&1
+        cd - > /dev/null
+    fi
+    
+    echo "Running: bin/rename_application $script_args"
+    
+    # Run the rename script
+    cd "$test_dir"
+    # shellcheck disable=SC2086
+    echo 'y' | bash bin/rename_application $script_args > /dev/null 2>&1 || true
+    cd - > /dev/null
+    
+    echo
+    echo "Verifying changes..."
+    
+    # Run checks
+    local test_passed=true
+    local errors=()
+    
+    # Check 1: Module name in application.rb
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "module MyCoolApp" "$test_dir/config/application.rb"; then
+            errors+=("Module name not updated to MyCoolApp")
+            test_passed=false
+        fi
+        if grep -q "RailsPipelineExample" "$test_dir/config/application.rb"; then
+            errors+=("Old module name RailsPipelineExample still present")
+            test_passed=false
+        fi
+    elif echo "$test_name" | grep -q "awesome-rails"; then
+        if ! grep -q "module AwesomeRails" "$test_dir/config/application.rb"; then
+            errors+=("Module name not updated to AwesomeRails")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 2: README.md updates (including title case)
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "My Cool App" "$test_dir/README.md"; then
+            errors+=("Title case name not updated in README")
+            test_passed=false
+        fi
+        if ! grep -q "my-cool-app" "$test_dir/README.md"; then
+            errors+=("Kebab-case name not updated in README")
+            test_passed=false
+        fi
+        if ! grep -q "my_cool_app" "$test_dir/README.md"; then
+            errors+=("Snake-case name not updated in README")
+            test_passed=false
+        fi
+        if grep -q "Rails Pipeline Example" "$test_dir/README.md"; then
+            errors+=("Old title case name still present in README")
+            test_passed=false
+        fi
+        if grep -q "rails-pipeline-example" "$test_dir/README.md"; then
+            errors+=("Old kebab name still present in README")
+            test_passed=false
+        fi
+    elif echo "$test_name" | grep -q "awesome-rails"; then
+        if ! grep -q "awesome-rails" "$test_dir/README.md"; then
+            errors+=("App name not updated to awesome-rails")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 3: Dockerfile updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my_cool_app" "$test_dir/Dockerfile"; then
+            errors+=("Dockerfile not updated with new name")
+            test_passed=false
+        fi
+        if grep -q "rails_pipeline_example" "$test_dir/Dockerfile"; then
+            errors+=("Old name still in Dockerfile")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 4: deploy.yml updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "service: my_cool_app" "$test_dir/config/deploy.yml"; then
+            errors+=("Deploy service not updated")
+            test_passed=false
+        fi
+        if ! grep -q "my_cool_app_storage" "$test_dir/config/deploy.yml"; then
+            errors+=("Deploy volume not updated")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 5: devcontainer.json updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my_cool_app" "$test_dir/.devcontainer/devcontainer.json"; then
+            errors+=("devcontainer.json not updated")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 6: compose.yaml updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "my_cool_app" "$test_dir/.devcontainer/compose.yaml"; then
+            errors+=("compose.yaml not updated")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 7: manifest.json.erb updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "MyCoolApp" "$test_dir/app/views/pwa/manifest.json.erb"; then
+            errors+=("manifest.json.erb not updated with CamelCase name")
+            test_passed=false
+        fi
+        if grep -q "RailsPipelineExample" "$test_dir/app/views/pwa/manifest.json.erb"; then
+            errors+=("Old CamelCase name still in manifest.json.erb")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 8: application.html.erb updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "My Cool App" "$test_dir/app/views/layouts/application.html.erb"; then
+            errors+=("application.html.erb not updated with Title Case name")
+            test_passed=false
+        fi
+        if grep -q "Rails Pipeline Example" "$test_dir/app/views/layouts/application.html.erb"; then
+            errors+=("Old Title Case name still in application.html.erb")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 9: GitHub owner updates (always required now)
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "testuser1" "$test_dir/README.md"; then
+            errors+=("GitHub owner not updated to testuser1 (auto-detected)")
+            test_passed=false
+        fi
+        if grep -q "davidleechen" "$test_dir/README.md"; then
+            errors+=("Old GitHub owner 'davidleechen' still present in README")
+            test_passed=false
+        fi
+    fi
+    
+    if echo "$script_args" | grep -q "myusername"; then
+        if ! grep -q "myusername" "$test_dir/README.md"; then
+            errors+=("GitHub owner not updated to myusername")
+            test_passed=false
+        fi
+        if grep -q "davidleechen" "$test_dir/README.md"; then
+            errors+=("Old GitHub owner 'davidleechen' still present in README")
+            test_passed=false
+        fi
+    fi
+    
+    if echo "$script_args" | grep -q "another-user"; then
+        if ! grep -q "another-user" "$test_dir/README.md"; then
+            errors+=("GitHub owner not updated to another-user")
+            test_passed=false
+        fi
+        if grep -q "davidleechen" "$test_dir/README.md"; then
+            errors+=("Old GitHub owner 'davidleechen' still present in README")
+            test_passed=false
+        fi
+    fi
+    
+    echo
+    echo "======================================================================"
+    if [ "$test_passed" = true ]; then
+        echo "✓ $test_name passed!"
+    else
+        echo "✗ $test_name failed!"
+        echo "======================================================================"
+        for error in "${errors[@]}"; do
+            echo "  ✗ $error"
+        done
+        echo
+        echo "Test directory preserved for inspection: $test_dir"
+        all_tests_passed=false
+        return 1
+    fi
+    
+    # Cleanup
+    rm -rf "$test_dir"
+    echo "Test directory cleaned up."
+    
+    return 0
+}
+
+echo "======================================================================"
+echo "Testing bin/rename_application script"
+echo "======================================================================"
+
+# Test 1: Rename with auto-detected GitHub owner
+test1_passed=false
+if run_test "Application rename with auto-detection (my-cool-app)" "my-cool-app"; then
+    test1_passed=true
+fi
+
+# Test 2: Rename with explicit GitHub owner (myusername)
+test2_passed=false
+if run_test "Application rename with explicit owner (awesome-rails)" "awesome-rails myusername"; then
+    test2_passed=true
+fi
+
+# Test 3: Rename with different explicit owner (another-user)
+test3_passed=false
+if run_test "Application rename with another owner (super-app)" "super-app another-user"; then
+    test3_passed=true
+fi
+
+echo
+echo "======================================================================"
+echo "Test Summary"
+echo "======================================================================"
+if [ "$test1_passed" = true ]; then
+    echo "Test 1 (Auto-detection): ✓ PASSED"
+else
+    echo "Test 1 (Auto-detection): ✗ FAILED"
+fi
+if [ "$test2_passed" = true ]; then
+    echo "Test 2 (Explicit owner): ✓ PASSED"
+else
+    echo "Test 2 (Explicit owner): ✗ FAILED"
+fi
+if [ "$test3_passed" = true ]; then
+    echo "Test 3 (Another owner): ✓ PASSED"
+else
+    echo "Test 3 (Another owner): ✗ FAILED"
+fi
+echo "======================================================================"
+
+if [ "$all_tests_passed" = true ]; then
+    echo
+    echo "All tests passed successfully!"
+    exit 0
+else
+    echo
+    echo "Some tests failed."
+    exit 1
+fi
