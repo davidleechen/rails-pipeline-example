@@ -24,6 +24,7 @@ run_test() {
     mkdir -p "$test_dir/config"
     mkdir -p "$test_dir/.devcontainer"
     mkdir -p "$test_dir/app/views/pwa"
+    mkdir -p "$test_dir/app/views/layouts"
     
     cat > "$test_dir/config/application.rb" << 'EOF'
 module RailsPipelineExample
@@ -60,6 +61,10 @@ EOF
 
     cat > "$test_dir/.devcontainer/compose.yaml" << 'EOF'
 name: "rails_pipeline_example"
+EOF
+
+    cat > "$test_dir/app/views/layouts/application.html.erb" << 'EOF'
+<title><%= content_for(:title) || "Rails Pipeline Example" %></title>
 EOF
 
     cat > "$test_dir/app/views/pwa/manifest.json.erb" << 'EOF'
@@ -187,7 +192,19 @@ EOF
         fi
     fi
     
-    # Check 8: GitHub owner updates
+    # Check 8: application.html.erb updates
+    if echo "$test_name" | grep -q "my-cool-app"; then
+        if ! grep -q "My Cool App" "$test_dir/app/views/layouts/application.html.erb"; then
+            errors+=("application.html.erb not updated with Title Case name")
+            test_passed=false
+        fi
+        if grep -q "Rails Pipeline Example" "$test_dir/app/views/layouts/application.html.erb"; then
+            errors+=("Old Title Case name still in application.html.erb")
+            test_passed=false
+        fi
+    fi
+    
+    # Check 9: GitHub owner updates
     if echo "$script_args" | grep -q "myusername"; then
         if ! grep -q "myusername" "$test_dir/README.md"; then
             errors+=("GitHub owner not updated to myusername")

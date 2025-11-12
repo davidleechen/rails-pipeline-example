@@ -158,6 +158,7 @@ files_to_update=(
     ".github/workflows/build-check.yml"
     ".devcontainer/devcontainer.json"
     ".devcontainer/compose.yaml"
+    "app/views/layouts/application.html.erb"
     "app/views/pwa/manifest.json.erb"
 )
 
