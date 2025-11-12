@@ -48,8 +48,7 @@ GitHub Action workflow runs automatically generate a token that allows pushing t
 a repository-scoped container registry.
 
 ## Deployment
-The following Kubernetes config was used to deploy into a cluster.
-
+The following Kubernetes config was used to deploy into a cluster. The path to this file is the `TARGET_MANIFEST`.
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -68,8 +67,8 @@ spec:
         app: rails-pipeline-example
     spec:
       containers:
-      - name: rails-pipeline-example
-        image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2
+      - name: rails-pipeline-example # This is the `CONTAINER_NAME`.
+        image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2 # This image without the tag is the `IMAGE_NAME`.
         ports:
         - containerPort: 3000
         env:
@@ -126,7 +125,7 @@ The release workflow includes an optional step to automatically update image tag
 To enable ArgoCD integration, configure the following in your GitHub repository settings:
 
 **Secrets** (Settings → Secrets and variables → Actions → Secrets):
-- `ARGOCD_PAT`: A Personal Access Token with write permissions to your ArgoCD manifest repository
+- `ARGOCD_PAT`: A Personal Access Token with write permissions to your ArgoCD manifest repository. As of this publication that means `Contents: Read/Write`.
 
 **Variables** (Settings → Secrets and variables → Actions → Variables):
 - `ARGOCD_USER`: GitHub username for authentication
