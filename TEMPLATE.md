@@ -14,11 +14,11 @@ This repository serves as a template for creating new Rails applications with a 
 Run the rename script with your desired application name (in kebab-case):
 
 ```bash
-# Option 1: Provide your GitHub username explicitly
-bin/rename_application my-awesome-app your-github-username
-
-# Option 2: Let it auto-detect from your git remote URL
+# Option 1: Let it auto-detect from your git remote URL
 bin/rename_application my-awesome-app
+
+# Option 2: Provide your GitHub username explicitly
+bin/rename_application my-awesome-app your-github-username
 ```
 
 The script will auto-detect your GitHub username from the git remote if not provided.
@@ -30,6 +30,8 @@ This will update:
 - Kamal deployment configuration in `config/deploy.yml`
 - GitHub Actions workflow files
 - GitHub owner references throughout the repository
+
+_You could stop here and be on your way to using this repository._
 
 ### Step 3: Configure Deployment
 
