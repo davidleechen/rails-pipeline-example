@@ -45,3 +45,24 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+      - name: Push tag to ArgoCD
+        if: ${{ secrets.ARGOCD_PAT != '' }}
+        env:
+          ARGOCD_PAT: ${{ secrets.ARGOCD_PAT }}
+          NEW_IMAGE_TAG: ${{ github.ref_name }}
+          ARGOCD_USER: ${{ vars.ARGOCD_USER }}
+          ARGOCD_OWNER: ${{ vars.ARGOCD_OWNER }}
+          ARGOCD_REPO: ${{ vars.ARGOCD_REPO }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
+          TARGET_MANIFEST: ${{ vars.TARGET_MANIFEST }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git clone https://${ARGOCD_USER}:${ARGOCD_PAT}@github.com/${ARGOCD_OWNER}/${ARGOCD_REPO}.git
+          cd ${ARGOCD_REPO}
+          # Update the image for the target container in the manifest file
+          sed -i "s|\(image:\s*${IMAGE_NAME}:\).*|\1${NEW_IMAGE_TAG}|" ${TARGET_MANIFEST}
+          git add ${TARGET_MANIFEST}
+          git commit -m "Update image tag to ${NEW_IMAGE_TAG} via release automation"
+          git push origin main
