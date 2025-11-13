@@ -67,6 +67,7 @@ spec:
         app: rails-pipeline-example
     spec:
       # Utilize these creds if you are using a private repository.
+      # This requires a GitHub personal access token (classic) with write:packages permissions.
       # imagePullSecrets:
       #   - name: ghcr-creds
       containers:
