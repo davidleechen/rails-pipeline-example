@@ -66,6 +66,9 @@ spec:
       labels:
         app: rails-pipeline-example
     spec:
+      # Utilize these creds if you are using a private repository.
+      # imagePullSecrets:
+      #   - name: ghcr-creds
       containers:
       - name: rails-pipeline-example
         image: ghcr.io/davidleechen/rails-pipeline-example:0.0.2 # This image without the tag is the `IMAGE_NAME`.
