@@ -1,7 +1,7 @@
 name: "rails_pipeline_example"
 
 services:
-  rails-app:
+  web:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
